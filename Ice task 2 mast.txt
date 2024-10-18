@@ -1,8 +1,7 @@
 Ice task 2 mast
 
-
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, Button, StyleSheet, TextInput, Alert, Animated } from 'react-native';
+import { View, Text, Button, StyleSheet, TextInput, Animated } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -32,7 +31,7 @@ function HomeScreen({ navigation }) {
       </Text>
       <View style={styles.buttonContainer}>
         <Button title="Start Training" onPress={() => navigation.navigate('Game')} />
-        <Button title="View Leaderboard" onPress={() => navigation.navigate('Leaderboard')} />
+        <Button title="View Your Score" onPress={() => navigation.navigate('Leaderboard')} />
       </View>
     </View>
   );
@@ -40,89 +39,80 @@ function HomeScreen({ navigation }) {
 
 // Game Screen
 function GameScreen({ navigation }) {
-  const [difficulty, setDifficulty] = useState('Apprentice');
+  const [operation, setOperation] = useState('Addition');
   const [question, setQuestion] = useState('');
   const [answer, setAnswer] = useState(0);
   const [userAnswer, setUserAnswer] = useState('');
-  const [timeLeft, setTimeLeft] = useState(30);
+  const [timeLeft, setTimeLeft] = useState(60);
   const [score, setScore] = useState(0);
   const [isAnswerCorrect, setIsAnswerCorrect] = useState(null);
-  const [powerUps, setPowerUps] = useState({
-    scoreDoubler: 1,
-    revealAnswer: 1,
-    freezeTimer: 1,
-  });
-  const [timeFrozen, setTimeFrozen] = useState(false);
-  const [scoreDoublerActive, setScoreDoublerActive] = useState(false);
   const timerRef = useRef(null);
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     generateQuestion();
-    if (!timeFrozen) {
-      timerRef.current = setInterval(() => {
-        setTimeLeft((prev) => {
-          if (prev <= 0) {
-            clearInterval(timerRef.current);
-            saveHighScore(score);
-            navigation.navigate('Result', { score });
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
+    timerRef.current = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 0) {
+          clearInterval(timerRef.current);
+          saveHighScore(score);
+          navigation.navigate('Result', { score });
+        }
+        return prev - 1;
+      });
+    }, 1000);
 
     return () => clearInterval(timerRef.current);
-  }, [timeLeft, timeFrozen]);
+  }, [timeLeft]);
 
-  // Generate a question based on difficulty
+  
   const generateQuestion = () => {
     let num1, num2;
-    if (difficulty === 'Apprentice') {
-      num1 = Math.floor(Math.random() * 10) + 1;
-      num2 = Math.floor(Math.random() * 10) + 1;
-      setQuestion(`${num1} + ${num2}`);
-      setAnswer(num1 + num2);
-    } else if (difficulty === 'Wizard') {
-      num1 = Math.floor(Math.random() * 10) + 1;
-      num2 = Math.floor(Math.random() * 10) + 1;
-      setQuestion(`${num1} * ${num2}`);
-      setAnswer(num1 * num2);
-    } else if (difficulty === 'Sorcerer') {
-      num1 = Math.floor(Math.random() * 100) + 1;
-      num2 = Math.floor(Math.random() * 100) + 1;
-      setQuestion(`${num1} - ${num2}`);
-      setAnswer(num1 - num2);
+    switch (operation) {
+      case 'Addition':
+        num1 = Math.floor(Math.random() * 10) + 1;
+        num2 = Math.floor(Math.random() * 10) + 1;
+        setQuestion(`${num1} + ${num2}`);
+        setAnswer(num1 + num2);
+        break;
+      case 'Subtraction':
+        num1 = Math.floor(Math.random() * 20) + 1;
+        num2 = Math.floor(Math.random() * 10) + 1;
+        setQuestion(`${num1} - ${num2}`);
+        setAnswer(num1 - num2);
+        break;
+      case 'Multiplication':
+        num1 = Math.floor(Math.random() * 10) + 1;
+        num2 = Math.floor(Math.random() * 10) + 1;
+        setQuestion(`${num1} * ${num2}`);
+        setAnswer(num1 * num2);
+        break;
+      case 'Division':
+        num1 = Math.floor(Math.random() * 100) + 1;
+        num2 = Math.floor(Math.random() * 10) + 1;
+        const quotient = Math.floor(num1 / num2); 
+        setQuestion(`${num1} ÷ ${num2}`);
+        setAnswer(quotient);
+        break;
+      default:
+        setQuestion('');
+        setAnswer(0);
     }
   };
 
   const checkAnswer = () => {
-    const parsedUserAnswer = parseInt(userAnswer);
-    console.log(`User Answer: ${parsedUserAnswer}, Correct Answer: ${answer}`);
-    
+    const parsedUserAnswer = parseFloat(userAnswer); 
     if (parsedUserAnswer === answer) {
-      console.log('Correct Answer!');
       setIsAnswerCorrect(true);
       animateCorrectAnswer();
-      const points = scoreDoublerActive ? 200 : 100; 
-      setScore((prevScore) => prevScore + points);
-      console.log(`Score Updated: ${points}, New Score: ${score + points}`);
-      setScoreDoublerActive(false);
+      setScore((prevScore) => prevScore + 100);
       generateQuestion();
       setUserAnswer('');
-      extendTime();
     } else {
-      console.log('Incorrect Answer!');
       setIsAnswerCorrect(false);
     }
   };
 
-  // Time extension for correct answers
-  const extendTime = () => {
-    setTimeLeft((prevTime) => prevTime + 5);
-  };
-
-  // Animation for correct answers
   const animateCorrectAnswer = () => {
     Animated.sequence([
       Animated.timing(fadeAnim, {
@@ -140,10 +130,7 @@ function GameScreen({ navigation }) {
 
   const saveHighScore = async (newScore) => {
     try {
-      const savedScores = await AsyncStorage.getItem('highScores');
-      const scores = savedScores ? JSON.parse(savedScores) : [];
-      scores.push(newScore);
-      await AsyncStorage.setItem('highScores', JSON.stringify(scores));
+      await AsyncStorage.setItem('personalScore', JSON.stringify(newScore));
     } catch (e) {
       console.error('Error saving score', e);
     }
@@ -152,7 +139,13 @@ function GameScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Solve the magical equation!</Text>
-      <Text style={styles.difficulty}>Difficulty: {difficulty}</Text>
+      <Text style={styles.operation}>Operation: {operation}</Text>
+      <View style={styles.operationButtons}>
+        <Button title="Addition" onPress={() => setOperation('Addition')} />
+        <Button title="Subtraction" onPress={() => setOperation('Subtraction')} />
+        <Button title="Multiplication" onPress={() => setOperation('Multiplication')} />
+        <Button title="Division" onPress={() => setOperation('Division')} />
+      </View>
       <Animated.Text style={[styles.question, { opacity: fadeAnim }]}>{question} = ?</Animated.Text>
       <TextInput
         style={styles.input}
@@ -164,75 +157,37 @@ function GameScreen({ navigation }) {
       <Button title="Submit Answer" onPress={checkAnswer} />
       <Text style={styles.timer}>Time Left: {timeLeft} seconds</Text>
       <Text style={styles.score}>Score: {score}</Text>
-      <View style={styles.powerUps}>
-        <Button
-          title="Score Doubler"
-          onPress={() => {
-            if (powerUps.scoreDoubler > 0) {
-              setScoreDoublerActive(true);
-              setPowerUps((prev) => ({ ...prev, scoreDoubler: prev.scoreDoubler - 1 }));
-            }
-          }}
-          disabled={powerUps.scoreDoubler === 0}
-        />
-        <Button
-          title="Reveal Answer"
-          onPress={() => {
-            if (powerUps.revealAnswer > 0) {
-              setUserAnswer(answer.toString());
-              setPowerUps((prev) => ({ ...prev, revealAnswer: prev.revealAnswer - 1 }));
-            }
-          }}
-          disabled={powerUps.revealAnswer === 0}
-        />
-        <Button
-          title="Freeze Timer"
-          onPress={() => {
-            if (powerUps.freezeTimer > 0) {
-              setTimeFrozen(true);
-              setPowerUps((prev) => ({ ...prev, freezeTimer: prev.freezeTimer - 1 }));
-              setTimeout(() => setTimeFrozen(false), 5000); 
-            }
-          }}
-          disabled={powerUps.freezeTimer === 0}
-        />
-      </View>
     </View>
   );
 }
 
 // Leaderboard Screen
 function LeaderboardScreen() {
-  const [highScores, setHighScores] = useState([]);
+  const [personalScore, setPersonalScore] = useState(null);
 
   useEffect(() => {
-    const loadScores = async () => {
+    const loadPersonalScore = async () => {
       try {
-        const savedScores = await AsyncStorage.getItem('highScores');
-        if (savedScores) {
-          const scoresArray = JSON.parse(savedScores).sort((a, b) => b - a);
-          setHighScores(scoresArray);
+        const savedScore = await AsyncStorage.getItem('personalScore');
+        if (savedScore) {
+          setPersonalScore(JSON.parse(savedScore));
         } else {
-          setHighScores([]); 
+          setPersonalScore(0);
         }
       } catch (error) {
-        console.error('Error loading high scores', error);
+        console.error('Error loading personal score', error);
       }
     };
-    loadScores();
+    loadPersonalScore();
   }, []);
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Leaderboard</Text>
-      {highScores.length === 0 ? (
-        <Text>No scores yet. Play a game to set a high score!</Text>
+      <Text style={styles.title}>Your Score</Text>
+      {personalScore !== null ? (
+        <Text style={styles.scoreText}>Your highest score: {personalScore}</Text>
       ) : (
-        highScores.map((score, index) => (
-          <Text key={index} style={styles.scoreText}>
-            {index + 1}. {score}
-          </Text>
-        ))
+        <Text>No score recorded yet.</Text>
       )}
     </View>
   );
@@ -250,7 +205,6 @@ function ResultScreen({ route, navigation }) {
   );
 }
 
-// Styles
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -260,51 +214,69 @@ const styles = StyleSheet.create({
     backgroundColor: '#F0F8FF', 
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 20,
+    fontSize: 28,  
+    fontWeight: '700',  
+    marginBottom: 25,
+    color: '#333',  
+    textShadowColor: '#aaa',  
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
   },
   description: {
     textAlign: 'center',
-    marginBottom: 20,
+    fontSize: 18,  
+    color: '#555',  
+    marginBottom: 25,
   },
-  difficulty: {
-    fontSize: 18,
-    marginBottom: 20,
+  operation: {
+    fontSize: 20,  
+    color: '#007BFF',
+    marginBottom: 15,
   },
   question: {
-    fontSize: 32,
-    marginBottom: 20,
+    fontSize: 36,  
+    color: '#FF4500',  
+    marginBottom: 25,
   },
   input: {
     width: '80%',
-    padding: 10,
+    padding: 12, 
     borderWidth: 1,
     borderColor: '#ccc',
-    borderRadius: 5,
-    marginBottom: 20,
+    borderRadius: 10,  
+    backgroundColor: '#fff',  
+    marginBottom: 25,
+    shadowColor: '#000',  
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 2,  
   },
   timer: {
-    fontSize: 20,
-    marginTop: 20,
+    fontSize: 22,
+    color: '#28a745',  
+    marginTop: 25,
   },
   score: {
-    fontSize: 20,
-    marginTop: 10,
+    fontSize: 22,
+    color: '#dc3545',  
+    marginTop: 15,
   },
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     width: '100%',
-    marginTop: 20,
+    marginTop: 25,
   },
-  powerUps: {
+  operationButtons: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginTop: 20,
+    marginTop: 15,
     width: '100%',
   },
   scoreText: {
-    fontSize: 18,
+    fontSize: 20,
+    color: '#333',  
   },
 });
+
